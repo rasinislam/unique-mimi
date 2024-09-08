@@ -34,11 +34,11 @@ app.get('/', (req, res) => {
 
         return res.json({
             status: 'success',
-            message: '🤍 | New replies added successfully Keyword "${keyword} Replies "${reply}"'
+            message: '🤍 | Successfully added new reply"'
         });
     } else if (message) {
         const formattedMessage = message.toLowerCase().trim();
-        let responseText = "I can't understand😫\n\nPlease Teach Me!\n {prefix}mayabi teach Jaan = Bolo Jaan\n\nIf any question, contact to admin\n\nFacebook: https://www.facebook.com/id.link.niye.muri.khaw/"; // Default response
+        let responseText = "I can't understand 😫\n\nPlease Teach Me!\n {prefix}mayabi teach Jaan = Bolo Jaan\n\nIf any question, contact to admin\n\nFacebook: https://www.facebook.com/id.link.niye.muri.khaw/"; // Default response
 
 
         for (const [keyword, response] of Object.entries(responses)) {
