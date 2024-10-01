@@ -1,97 +1,65 @@
+require('dotenv').config();
 const express = require('express');
-const fs = require('fs');
+const mongoose = require('mongoose');
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Function to load responses from responses.json
-function loadResponses() {
-    try {
-        // Check if the responses.json file exists
-        if (!fs.existsSync('responses.json')) {
-            fs.writeFileSync('responses.json', '{}'); // Create an empty file if it doesn't exist
-        }
-        const data = fs.readFileSync('responses.json', 'utf-8');
-        return JSON.parse(data) || {};
-    } catch (error) {
-        console.error("Error reading or parsing responses.json:", error);
-        return {};
-    }
-}
+// MongoDB connection
+mongoose.connect(process.env.MONGODB_URI, { useNewUrlParser: true, useUnifiedTopology: true })
+  .then(() => console.log('✅ | MongoDB connected'))
+  .catch(err => console.log('❌ | MongoDB connection error:', err));
 
-// Load responses into memory
-let responses = loadResponses();
+// Create a schema for responses
+const responseSchema = new mongoose.Schema({
+    keyword: String,
+    reply: String
+});
 
-// Function to save responses to responses.json
-function saveResponses(responses) {
-    try {
-        fs.writeFileSync('responses.json', JSON.stringify(responses, null, 2), 'utf-8');
-    } catch (error) {
-        console.error("Error saving responses.json:", error);
-    }
-}
+const Response = mongoose.model('Response', responseSchema);
 
-// Route to handle teaching new keywords or getting a reply for a message
-app.get('/', (req, res) => {
+app.get('/', async (req, res) => {
     const keyword = req.query.keyword;
     const reply = req.query.reply;
     const message = req.query.message;
 
-    // Adding a new keyword-reply pair
     if (keyword && reply) {
         const formattedKeyword = keyword.toLowerCase().trim();
         const formattedReply = reply.trim();
 
-        responses[formattedKeyword] = formattedReply;
-
-        saveResponses(responses);
+        // Save new response to the database
+        await Response.findOneAndUpdate(
+            { keyword: formattedKeyword },
+            { reply: formattedReply },
+            { upsert: true }
+        );
 
         return res.json({
             status: 'success',
             message: '🤍 | Successfully added new reply'
         });
-    }
-    // Replying based on message
-    else if (message) {
+    } else if (message) {
         const formattedMessage = message.toLowerCase().trim();
-        let responseText = "I can't understand 😫\n\nPlease Teach Me!🙂🫠\n\nIf any question, contact to admin💚👾Facebook: https://www.facebook.com/id.link.niye.muri.khaw/"; // Default response
 
-        // Look for keyword in the message
-        for (const [keyword, response] of Object.entries(responses)) {
-            if (formattedMessage.includes(keyword)) {
-                responseText = response;
-                break;
-            }
+        let responseText = "I can't understand 😫\n\nPlease Teach Me!🙂🫠";
+
+        // Find the response from the database
+        const response = await Response.findOne({ keyword: { $regex: formattedMessage, $options: 'i' } });
+
+        if (response) {
+            responseText = response.reply;
         }
 
         return res.json({
             status: 'success',
             response: responseText
         });
-    }
-    // Error if neither keyword/reply nor message is provided
-    else {
+    } else {
         return res.json({
             status: 'error',
             message: '❌ | No message or keyword/reply provided.'
         });
     }
-});
-
-// Handle invalid routes or methods
-app.use((req, res) => {
-    return res.json({
-        status: 'error',
-        message: '⚠ | Invalid request method. Please use GET.'
-    });
-});
-
-// Error handling middleware
-app.use((err, req, res, next) => {
-    console.error("Internal Server Error: ", err.stack);
-    res.status(500).json({
-        status: 'error',
-        message: 'Internal Server Error'
-    });
 });
 
 // Start the server
